@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <!-- Source Protection: Deters casual copying. interval=1000ms
+             keeps it non-intrusive during normal browsing. -->
+<!-- <script disable-devtool-auto
+        src='https://cdn.jsdelivr.net/npm/disable-devtool'
+        interval='1000'
+        redirect-url='https://bis-portal.vercel.app'></script> -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIS Student Portal | Capital University</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="BIS-LOGO.jpg">
+    
+    <!-- Custom Stylesheet -->
+    <link rel="stylesheet" href="landing-style.css">
+    
+    <!-- Vercel Web Analytics -->
+    <script>
+        window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <div class="hero-container">
+            <div class="logo-container">
+                <img src="BIS-LOGO.jpg" alt="BIS Logo" class="hero-logo">
+            </div>
+            <h1 class="hero-title">BIS Student Portal</h1>
+            <p class="hero-subtitle">Your all-in-one tool for GPA calculation and schedule building</p>
+            <div class="hero-badge">Business Information Systems - Capital University</div>
+        </div>
+    </div>
+
+    <!-- Main Navigation Section -->
+    <div class="services-section">
+        <div class="container">
+            <h2 class="section-title">Choose Your Tool</h2>
+            <p class="section-subtitle">Select the utility you need to get started</p>
+            
+            <div class="service-cards">
+                <!-- GPA Calculator Card -->
+                <a href="/GPA-Calculator/" class="service-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+
+                        </svg>
+                    </div>
+                    <h3 class="card-title">GPA Calculator</h3>
+                    <p class="card-description">Calculate your semester and cumulative GPA with automatic grade conversion and rating system</p>
+                    <div class="card-features">
+                        <span class="feature-tag">
+                            <svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            All 4 Years
+                        </span>
+                        <span class="feature-tag">
+                            <svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            Auto Calculations
+                        </span>
+                        <span class="feature-tag">
+                            <svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            Export Results
+                        </span>
+                    </div>
+                    <div class="card-arrow">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                            <polyline points="12 5 19 12 12 19"/>
+                        </svg>
+                    </div>
+                </a>
+
+                <!-- Schedule Builder Card -->
+                <a href="/schedule/" class="service-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2z"/>
+                        </svg>
+                    </div>
+                    <h3 class="card-title">Schedule Builder</h3>
+                    <p class="card-description">Build your perfect class schedule with drag-and-drop functionality and conflict detection</p>
+                    <div class="card-features">
+                        <span class="feature-tag">
+                            <svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            Updated Data
+                        </span>
+                        <span class="feature-tag">
+                            <svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            Smart Conflicts
+                        </span>
+                        <span class="feature-tag">
+                            <svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            Export Schedule
+                        </span>
+                    </div>
+                    <div class="card-arrow">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                            <polyline points="12 5 19 12 12 19"/>
+                        </svg>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAQ Section -->
+    <div class="faq-section">
+        <div class="container">
+            <h2 class="section-title">Frequently Asked Questions</h2>
+            <p class="section-subtitle">Everything you need to know about the BIS Student Portal</p>
+            
+            <div class="faq-container">
+                <!-- FAQ Item 1 -->
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">
+                        <span>Is this website affiliated with Capital University or the BIS Program?</span>
+                        <span class="faq-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                        </span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>No, this website is an independent personal project. It was created to assist students in overcoming registration challenges, such as visualizing schedules or calculating GPA when official systems are unavailable.</p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 2 -->
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">
+                        <span>Is the data in the Schedule Builder updated for the current semester?</span>
+                        <span class="faq-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                        </span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Yes, the faculty and schedule data are updated term-by-term immediately after the university releases the official schedules to ensure accuracy during registration.</p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 3 -->
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">
+                        <span>How accurate is the GPA calculation?</span>
+                        <span class="faq-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                        </span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>The calculator uses the official Helwan University grading scale and credit hour system. <strong>However</strong>, always verify important calculations with your academic advisor or the official university system (Ibn ElHaitham).</p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 4 -->
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">
+                        <span>Do I need to create an account to use these tools?</span>
+                        <span class="faq-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                        </span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>No account needed! Both tools work completely offline in your browser. Your data is stored locally and never sent to any server, ensuring complete privacy.</p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 5 -->
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">
+                        <span>Can I export my GPA results or schedule?</span>
+                        <span class="faq-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                        </span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Yes! Both tools include export functionality. You can download your GPA results and schedule as high quality images or PDF files for printing or sharing.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <img src="BIS-LOGO.jpg" alt="BIS Logo" class="footer-logo-img">
+                    <span class="footer-brand">BIS Student Portal</span>
+                </div>
+
+                <div class="footer-social">
+                    <a href="https://www.linkedin.com/in/saifwael/" target="_blank" class="social-link" title="LinkedIn">
+                        <svg class="social-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                        </svg>
+                    </a>
+                    <a href="https://www.facebook.com/ReaMrZeus" target="_blank" class="social-link" title="Facebook">
+                        <svg class="social-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                    </a>
+                    <a href="https://www.facebook.com/BIS.FCBA.Helwan.uni" target="_blank" class="social-link" title="BIS Page">
+                        <svg class="social-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm3 8h-1.35c-.538 0-.65.221-.65.778V10h2l-.209 2H13v7h-3v-7H8v-2h2V7.692C10 5.923 10.931 5 13.029 5H15v3z"/>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+
+            <div class="footer-divider"></div>
+
+            <div class="footer-bottom">
+                <p class="copyright">All rights reserved to <strong>Saif Wael ©</strong></p>
+                <p class="disclaimer">
+                    <strong>Disclaimer:</strong> This website is an independent tool and is not affiliated with, endorsed by, or connected to Capital University or the BIS program.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Custom JavaScript -->
+    <script src="landing-script.js"></script>
+</body>
+</html>

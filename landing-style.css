@@ -1,0 +1,791 @@
+/* BIS Student Portal - Landing Page Styles */
+
+:root {
+    /* BIS Theme Colors */
+    --bis-primary: #1e3a5f;
+    --bis-secondary: #2c5282;
+    --bis-accent: #4a9eff;
+    --bis-light: #63b3ed;
+    --bis-dark: #0f2744;
+    --bis-gradient-start: #1a365d;
+    --bis-gradient-end: #2563eb;
+    
+    /* UI Colors */
+    --bg-main: #f8fafc;
+    --bg-card: #ffffff;
+    --text-primary: #1a202c;
+    --text-secondary: #64748b;
+    --border: #e2e8f0;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background: var(--bg-main);
+    color: var(--text-primary);
+    line-height: 1.6;
+    overflow-x: hidden;
+}
+
+/* Hero Section */
+.hero-section {
+    background: linear-gradient(135deg, var(--bis-gradient-start) 0%, var(--bis-gradient-end) 100%);
+    padding: 4rem 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    animation: fadeIn 0.8s ease-out;
+}
+
+.hero-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 50%, rgba(74, 158, 255, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(99, 179, 237, 0.15) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+.hero-container {
+    max-width: 800px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+.logo-container {
+    margin-bottom: 2rem;
+    animation: logoFloat 3s ease-in-out infinite;
+}
+
+@keyframes logoFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.hero-logo {
+    width: 120px;
+    height: 120px;
+    object-fit: contain;
+    filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.3));
+}
+
+.hero-title {
+    font-size: clamp(2.5rem, 6vw, 3.5rem);
+    font-weight: 800;
+    color: white;
+    margin-bottom: 1rem;
+    text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+    letter-spacing: -1px;
+    animation: slideUp 0.8s ease-out 0.2s both;
+}
+
+.hero-subtitle {
+    font-size: clamp(1.1rem, 3vw, 1.3rem);
+    color: rgba(255, 255, 255, 0.95);
+    font-weight: 400;
+    margin-bottom: 2rem;
+    animation: slideUp 0.8s ease-out 0.4s both;
+}
+
+.hero-badge {
+    display: inline-block;
+    padding: 0.75rem 2rem;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border-radius: 50px;
+    color: white;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    animation: slideUp 0.8s ease-out 0.6s both;
+}
+
+/* Services Section */
+.services-section {
+    padding: 5rem 2rem;
+    background: var(--bg-main);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.section-title {
+    font-size: clamp(2rem, 5vw, 2.5rem);
+    font-weight: 700;
+    text-align: center;
+    color: var(--bis-primary);
+    margin-bottom: 1rem;
+    animation: fadeIn 0.8s ease-out;
+}
+
+.section-subtitle {
+    font-size: 1.1rem;
+    text-align: center;
+    color: var(--text-secondary);
+    margin-bottom: 3rem;
+    animation: fadeIn 0.8s ease-out 0.2s both;
+}
+
+.service-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.service-card {
+    background: white;
+    border-radius: 24px;
+    padding: 2.5rem;
+    text-decoration: none;
+    color: var(--text-primary);
+    box-shadow: var(--shadow-lg);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    border: 2px solid transparent;
+    animation: slideUp 0.8s ease-out both;
+}
+
+.service-card:nth-child(1) {
+    animation-delay: 0.3s;
+}
+
+.service-card:nth-child(2) {
+    animation-delay: 0.5s;
+}
+
+.service-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--bis-accent), var(--bis-light));
+    transform: scaleX(0);
+    transition: transform 0.4s ease;
+}
+
+.service-card:hover {
+    transform: translateY(-10px);
+    box-shadow: var(--shadow-2xl);
+    border-color: var(--bis-accent);
+}
+
+.service-card:hover::before {
+    transform: scaleX(1);
+}
+
+.card-icon {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+    display: inline-block;
+    transition: transform 0.4s ease;
+}
+
+.service-card:hover .card-icon {
+    transform: scale(1.1) rotate(5deg);
+}
+
+.card-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: var(--bis-primary);
+}
+
+.card-description {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+    line-height: 1.7;
+}
+
+.card-features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.feature-tag {
+    padding: 0.4rem 0.9rem;
+    background: var(--bg-main);
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--bis-primary);
+    border: 1px solid var(--border);
+}
+
+.card-arrow {
+    font-size: 1.5rem;
+    color: var(--bis-accent);
+    font-weight: 700;
+    transition: transform 0.3s ease;
+}
+
+.service-card:hover .card-arrow {
+    transform: translateX(5px);
+}
+
+/* FAQ Section */
+.faq-section {
+    padding: 5rem 2rem;
+    background: white;
+}
+
+.faq-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.faq-item {
+    margin-bottom: 1rem;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 2px solid var(--border);
+    transition: all 0.3s ease;
+    animation: slideUp 0.6s ease-out both;
+}
+
+.faq-item:nth-child(1) { animation-delay: 0.1s; }
+.faq-item:nth-child(2) { animation-delay: 0.2s; }
+.faq-item:nth-child(3) { animation-delay: 0.3s; }
+.faq-item:nth-child(4) { animation-delay: 0.4s; }
+.faq-item:nth-child(5) { animation-delay: 0.5s; }
+
+.faq-item:hover {
+    border-color: var(--bis-accent);
+    box-shadow: var(--shadow-md);
+}
+
+.faq-question {
+    width: 100%;
+    padding: 1.5rem 2rem;
+    background: white;
+    border: none;
+    text-align: left;
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--bis-primary);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+}
+
+.faq-question:hover {
+    background: var(--bg-main);
+}
+
+.faq-icon {
+    font-size: 1.5rem;
+    font-weight: 300;
+    color: var(--bis-accent);
+    transition: transform 0.3s ease;
+    flex-shrink: 0;
+}
+
+.faq-item.active .faq-icon {
+    transform: rotate(45deg);
+}
+
+.faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease, padding 0.4s ease;
+    background: var(--bg-main);
+}
+
+.faq-item.active .faq-answer {
+    max-height: 500px;
+    padding: 1.5rem 2rem;
+}
+
+.faq-answer p {
+    color: var(--text-secondary);
+    line-height: 1.8;
+    margin: 0;
+}
+
+/* Footer */
+.footer {
+    background: linear-gradient(135deg, var(--bis-dark) 0%, var(--bis-primary) 100%);
+    color: white;
+    padding: 3rem 2rem 2rem 2rem;
+}
+
+.footer-content {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.footer-logo {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.footer-logo-img {
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+}
+
+.footer-brand {
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+.footer-links {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.footer-link {
+    color: rgba(255, 255, 255, 0.9);
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.footer-link:hover {
+    color: var(--bis-light);
+    transform: translateY(-2px);
+}
+
+.footer-social {
+    display: flex;
+    gap: 1rem;
+}
+
+.social-link {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.social-link:hover {
+    background: var(--bis-accent);
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(74, 158, 255, 0.4);
+}
+
+.social-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.footer-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 2rem 0;
+}
+
+.footer-bottom {
+    text-align: center;
+}
+
+.copyright {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    font-weight: 500;
+}
+
+.disclaimer {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.6;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .hero-section {
+        padding: 3rem 1.5rem;
+    }
+
+    .hero-logo {
+        width: 90px;
+        height: 90px;
+    }
+
+    .services-section {
+        padding: 3rem 1.5rem;
+    }
+
+    .service-cards {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .service-card {
+        padding: 2rem;
+    }
+
+    .faq-section {
+        padding: 3rem 1.5rem;
+    }
+
+    .faq-question {
+        padding: 1.2rem 1.5rem;
+        font-size: 1rem;
+    }
+
+    .faq-item.active .faq-answer {
+        padding: 1.2rem 1.5rem;
+    }
+
+    .footer-content {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .footer-links {
+        justify-content: center;
+    }
+
+    .footer-social {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-badge {
+        font-size: 0.85rem;
+        padding: 0.6rem 1.5rem;
+    }
+
+    .card-icon {
+        font-size: 3rem;
+    }
+
+    .card-title {
+        font-size: 1.5rem;
+    }
+
+    .feature-tag {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.75rem;
+    }
+}
+
+
+/* FIXED SVG */
+/* ====================================
+   PROFESSIONAL SVG ICON SYSTEM
+   For Home Page & GPA Calculator
+   ==================================== */
+
+/* ====================================
+   Base Icon Styles
+   ==================================== */
+
+svg {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* ====================================
+   Icon Size Classes
+   ==================================== */
+
+/* Heading Icons (h1, h2, h3) */
+.icon-heading {
+    width: 28px;
+    height: 28px;
+    margin-right: 10px;
+    vertical-align: text-bottom;
+    fill: currentColor;
+}
+
+/* Button Icons */
+.icon-btn {
+    width: 18px;
+    height: 18px;
+    margin-right: 6px;
+    vertical-align: middle;
+    stroke: currentColor;
+    fill: none;
+}
+
+/* Social Icons */
+.icon-social {
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    vertical-align: middle;
+    fill: currentColor;
+    transition: transform 0.2s ease;
+}
+
+.social-link:hover .icon-social {
+    transform: scale(1.1);
+}
+
+/* Checkmark Icons (feature tags) */
+.icon-check {
+    width: 14px;
+    height: 14px;
+    margin-right: 5px;
+    vertical-align: middle;
+    stroke: currentColor;
+    fill: none;
+}
+
+/* ====================================
+   Home Page Specific Icons
+   ==================================== */
+
+/* Service Card Icons (large) */
+.card-icon svg {
+    width: 64px;
+    height: 64px;
+    fill: currentColor;
+}
+
+/* Card Arrow Icons */
+.card-arrow svg {
+    width: 24px;
+    height: 24px;
+    stroke: currentColor;
+    fill: none;
+    transition: transform 0.3s ease;
+}
+
+.service-card:hover .card-arrow svg {
+    transform: translateX(5px);
+}
+
+/* FAQ Icons */
+.faq-icon svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    fill: none;
+    transition: transform 0.3s ease;
+}
+
+.faq-item.active .faq-icon svg {
+    transform: rotate(45deg);
+}
+
+/* ====================================
+   GPA Calculator Specific Icons
+   ==================================== */
+
+/* Clear Button Style */
+.btn-clear {
+    background: rgba(255, 255, 255, 0.25);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-clear .icon-btn {
+    stroke: white;
+}
+
+.btn-clear:hover {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+/* Form Label Style */
+.form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+/* ====================================
+   Context-Specific Icon Colors
+   ==================================== */
+
+/* Success Buttons */
+.btn-success .icon-btn {
+    stroke: white;
+}
+
+/* Secondary Buttons */
+.btn-secondary .icon-btn {
+    stroke: currentColor;
+}
+
+/* Danger Buttons */
+.btn-danger .icon-btn {
+    stroke: white;
+}
+
+/* ====================================
+   Icon Animations
+   ==================================== */
+
+@keyframes icon-spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.icon-spin {
+    animation: icon-spin 1s linear infinite;
+}
+
+@keyframes icon-pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.icon-pulse {
+    animation: icon-pulse 2s ease-in-out infinite;
+}
+
+/* ====================================
+   Responsive Adjustments
+   ==================================== */
+
+@media (max-width: 768px) {
+    .icon-heading {
+        width: 24px;
+        height: 24px;
+        margin-right: 8px;
+    }
+    
+    .icon-btn {
+        width: 16px;
+        height: 16px;
+        margin-right: 5px;
+    }
+    
+
+    .card-icon svg {
+        width: 52px;
+        height: 52px;
+    }
+    
+    .card-arrow svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .icon-heading {
+        width: 20px;
+        height: 20px;
+        margin-right: 6px;
+    }
+    
+    .icon-btn {
+        width: 14px;
+        height: 14px;
+        margin-right: 4px;
+    }
+    
+    .card-icon svg {
+        width: 48px;
+        height: 48px;
+    }
+    
+    .icon-check {
+        width: 12px;
+        height: 12px;
+    }
+}
+
+/* ====================================
+   Legacy Support
+   ==================================== */
+
+/* Backward compatibility */
+.social-icon {
+    width: 20px;
+    height: 20px;
+    vertical-align: middle;
+    fill: currentColor;
+}
+
+/* ====================================
+   Accessibility
+   ==================================== */
+
+svg[aria-hidden="true"] {
+    pointer-events: none;
+}
+
+
+/* ====================================
+   Print Optimization
+   ==================================== */
+
+@media print {
+    svg {
+        color: #000 !important;
+        fill: #000 !important;
+    }
+}
