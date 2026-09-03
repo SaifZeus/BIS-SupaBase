@@ -30,7 +30,7 @@ let siteSettings = {
   maintenance_mode: false,
   sections_renewal_pending: false,
   courses_renewal_pending: false,
-  is_semester_2_active: true, // Default to true if not set
+  is_semester_2_active: false,
 };
 
 // Load schedule from Supabase
@@ -57,46 +57,34 @@ async function loadScheduleFromSupabase() {
             <line x1="12" y1="17" x2="12.01" y2="17"/>
           </svg>
           <h2 style="color: var(--text-primary); margin-bottom: 0.5rem;">Under Maintenance</h2>
-          <p>The schedule is currently under maintenance. Data is being updated.</p>
+          <p>⚠️ The schedule is currently under maintenance. Data is being updated.</p>
         </div>
       `;
       return;
     }
-    // Fetch courses to determine level mappings
-    const { data: coursesData, error: coursesError } = await supabase
-      .from("courses")
-      .select("name, level, semester, code");
-    if (coursesError) throw coursesError;
 
-    const courseLevelMap = {};
-    const courseSemesterMap = {};
-    if (coursesData) {
-      coursesData.forEach((c) => {
-        courseLevelMap[c.name] = c.level;
-        courseSemesterMap[c.name] = c.semester;
-      });
-    }
-
-    // Fetch course schedules with nested relations
+    // Fetch course schedules with nested relations (now embedding courses via fkey)
     const { data: schedulesData, error: schedulesError } = await supabase
       .from("course_schedules")
-      .select("*, doctors(*, doctor_slots(*)), sections(*, section_slots(*))");
+      .select(
+        "*, courses!course_schedules_course_code_fkey(code, name, level, semester), doctors(*, doctor_slots(*)), sections(*, section_slots(*))",
+      );
 
     if (schedulesError) throw schedulesError;
 
     if (schedulesData && schedulesData.length > 0) {
       const newScheduleData = { 1: [], 2: [], 3: [], 4: [] };
 
-      const activeGlobalSemester = siteSettings.is_semester_2_active ? 2 : 1;
-
       schedulesData.forEach((schedule) => {
-        const level = courseLevelMap[schedule.name] || 2; // Default to level 2 if not found
-        const semester = courseSemesterMap[schedule.name] || 2; // Default to 2
-
-        // CRITICAL: Only process schedules that belong to the globally active semester!
-        if (semester !== activeGlobalSemester) {
+        if (!schedule.courses) {
+          console.error(
+            `course_schedules id ${schedule.id} has no linked course`,
+          );
           return;
         }
+        const activeSemester = siteSettings.is_semester_2_active ? 2 : 1;
+        if (schedule.courses.semester !== activeSemester) return; // not the active semester — skip
+        const level = schedule.courses.level;
 
         const doctors = [];
         const sections = [];

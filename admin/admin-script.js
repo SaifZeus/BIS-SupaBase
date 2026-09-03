@@ -351,24 +351,25 @@ async function loadAllData() {
       });
     }
 
-    // Load schedule
+    // Load schedule (embedding courses via FK)
     const { data: schedulesData, error: schedulesError } = await supabase
       .from("course_schedules")
-      .select("*, doctors(*, doctor_slots(*)), sections(*, section_slots(*))");
+      .select(
+        "*, courses!course_schedules_course_code_fkey(code, name, level, semester), doctors(*, doctor_slots(*)), sections(*, section_slots(*))",
+      );
 
     if (schedulesError) throw schedulesError;
-
-    const courseLevelMap = {};
-    const courseCodeMap = {};
-    coursesData.forEach((c) => {
-      courseLevelMap[c.name] = c.level;
-      courseCodeMap[c.name] = c.code;
-    });
 
     const newScheduleData = { 1: [], 2: [], 3: [], 4: [] };
     if (schedulesData) {
       schedulesData.forEach((schedule) => {
-        const level = courseLevelMap[schedule.name] || 2;
+        if (!schedule.courses) {
+          console.error(
+            `course_schedules id ${schedule.id} has no linked course`,
+          );
+          return;
+        }
+        const level = schedule.courses.level;
         const doctors = [];
         const sections = [];
 
@@ -426,7 +427,7 @@ async function loadAllData() {
         newScheduleData[level].push({
           id: schedule.id,
           name: schedule.name,
-          course_code: courseCodeMap[schedule.name] || null,
+          course_code: schedule.courses.code,
           color: schedule.color,
           doctors: doctors,
           sections: sections,
@@ -1199,6 +1200,14 @@ document
       return;
     }
 
+    if (!currentScheduleCourseCode) {
+      showToast(
+        "Please select an existing course before saving a schedule",
+        "error",
+      );
+      return;
+    }
+
     showLoading();
     try {
       if (!scheduleData[level]) scheduleData[level] = [];
@@ -1210,6 +1219,7 @@ document
         .upsert(
           {
             ...(scheduleDbId ? { id: scheduleDbId } : {}),
+            course_code: currentScheduleCourseCode,
             name: subjectData.name,
             color: subjectData.color,
           },
@@ -1221,28 +1231,6 @@ document
       if (schedError) throw schedError;
       if (!savedSchedule)
         throw new Error("No data returned from save (RLS issue?)");
-
-      // Sync level and name to the courses table using the unique code
-      if (currentScheduleCourseCode) {
-        // We have the unique code, so we can update safely without name collisions
-        await supabase
-          .from("courses")
-          .update({ level: level, name: subjectData.name })
-          .eq("code", currentScheduleCourseCode);
-
-        // Update local coursesData array to reflect the changes
-        const localCourse = coursesData.find(
-          (c) => c.code === currentScheduleCourseCode,
-        );
-        if (localCourse) {
-          localCourse.level = level;
-          localCourse.name = subjectData.name;
-        }
-      } else {
-        // This is a completely new schedule item that was just created via "Add Subject"
-        // It has no known course_code. We can't safely guess which course to update in the DB.
-        // It's the user's responsibility to create the course in the GPA view.
-      }
 
       scheduleDbId = savedSchedule.id;
 

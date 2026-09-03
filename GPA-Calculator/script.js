@@ -35,6 +35,7 @@ async function loadCoursesFromSupabase() {
 
     if (error) {
       console.error("Error fetching courses from Supabase:", error.message);
+      showStaleDataBanner();
       return;
     }
 
@@ -55,9 +56,54 @@ async function loadCoursesFromSupabase() {
       coursesDatabase.length = 0; // Clear existing
       coursesDatabase.push(...mappedCourses);
       console.log("Courses loaded successfully from Supabase");
+    } else {
+      showStaleDataBanner();
     }
   } catch (error) {
     console.log("Using local courses data:", error.message);
+    showStaleDataBanner();
+  }
+}
+
+function showStaleDataBanner() {
+  // Only show once
+  if (document.getElementById("stale-data-banner")) return;
+
+  const banner = document.createElement("div");
+  banner.id = "stale-data-banner";
+
+  // Style it to look good in both light and dark modes
+  banner.style.cssText = `
+    background-color: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    color: var(--text-primary, #333);
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  `;
+
+  banner.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <svg style="width: 20px; height: 20px; color: #f59e0b; flex-shrink: 0;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+      </svg>
+      <span>Showing offline course data &mdash; course list may not reflect recent updates.</span>
+    </div>
+    <button onclick="this.parentElement.remove()" style="background: none; border: none; cursor: pointer; color: var(--text-secondary, #666); padding: 4px; display: flex; align-items: center;">
+      <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+      </svg>
+    </button>
+  `;
+
+  const container = document.querySelector(".container");
+  if (container) {
+    container.insertAdjacentElement("afterbegin", banner);
   }
 }
 
@@ -527,15 +573,39 @@ function calculateGPA() {
   let estimatedPreviousHours = 0;
 
   if (previousGPA > 0) {
-    // Auto-estimate previous hours based on typical semester credit hours
     const currentLevel = parseInt(document.getElementById("levelSelect").value);
     const currentSemester = parseInt(
       document.getElementById("semesterSelect").value,
     );
 
-    // Calculate completed semesters before current one
-    const completedSemesters = (currentLevel - 1) * 2 + (currentSemester - 1);
-    estimatedPreviousHours = completedSemesters * 17; // Estimate 17 hours per semester
+    // Dynamically calculate actual credit hours from previous semesters using coursesDatabase
+    estimatedPreviousHours = 0;
+    if (typeof coursesDatabase !== "undefined" && coursesDatabase.length > 0) {
+      const previousCourses = coursesDatabase.filter(
+        (c) =>
+          c.level < currentLevel ||
+          (c.level === currentLevel && c.semester < currentSemester),
+      );
+
+      let processedElectiveGroups = new Set();
+
+      previousCourses.forEach((course) => {
+        // If elective or choose_one, we only count ONE course per semester group
+        if (course.chooseOne || course.elective) {
+          const groupKey = `${course.level}-${course.semester}`;
+          if (!processedElectiveGroups.has(groupKey)) {
+            estimatedPreviousHours += course.hours;
+            processedElectiveGroups.add(groupKey);
+          }
+        } else {
+          estimatedPreviousHours += course.hours;
+        }
+      });
+    } else {
+      // Fallback
+      const completedSemesters = (currentLevel - 1) * 2 + (currentSemester - 1);
+      estimatedPreviousHours = completedSemesters * 17;
+    }
 
     if (estimatedPreviousHours > 0) {
       const previousTotalPoints = previousGPA * estimatedPreviousHours;
@@ -566,10 +636,13 @@ function calculateGPA() {
     cumulativeCard.style.cssText =
       "background: rgba(251, 191, 36, 0.3); border: 2px solid rgba(251, 191, 36, 0.5);";
     cumulativeCard.innerHTML = `
-            <div class="result-label">🎯 New Cumulative GPA</div>
+            <div class="result-label">New Cumulative GPA</div>
             <div class="result-value">${cumulativeGPA.toFixed(2)}</div>
             <div style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.95; font-weight: 500;">
-                Est. Total Hours: ~${totalCumulativeHours}
+                Total Hours: ${totalCumulativeHours}
+            </div>
+            <div style="font-size: 0.75rem; margin-top: 0.75rem; font-weight: 300; opacity: 0.7; line-height: 1.3;">
+                *Note: The calculated cumulative GPA may differ by up to 0.01 from the official university GPA due to rounding of the previous cumulative GPA.
             </div>
         `;
     resultsGrid.appendChild(cumulativeCard);
