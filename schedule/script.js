@@ -31,7 +31,18 @@ let siteSettings = {
   sections_renewal_pending: false,
   courses_renewal_pending: false,
   is_semester_2_active: false,
+  // Level readiness for the CURRENT semester. true = ready/visible. Defaults
+  // to true so a missing row (or a failed settings load) never hides a level.
+  level_1_visible: true,
+  level_2_visible: true,
+  level_3_visible: true,
+  level_4_visible: true,
 };
+
+// Only an explicit `false` hides a level. Missing / null / undefined => visible.
+function isLevelVisible(level) {
+  return siteSettings[`level_${level}_visible`] !== false;
+}
 
 // Load schedule from Supabase
 async function loadScheduleFromSupabase() {
@@ -63,11 +74,17 @@ async function loadScheduleFromSupabase() {
       return;
     }
 
+    // If a level was selected before settings arrived and it is OFF, replace
+    // whatever is showing with the not-ready notice (no stale schedule).
+    if (selectedYear && !isLevelVisible(selectedYear)) {
+      showLevelNotReady(selectedYear);
+    }
+
     // Fetch course schedules with nested relations (now embedding courses via fkey)
     const { data: schedulesData, error: schedulesError } = await supabase
       .from("course_schedules")
       .select(
-        "*, courses!course_schedules_course_code_fkey(code, name, level, semester), doctors(*, doctor_slots(*)), sections(*, section_slots(*))",
+        "*, courses!course_schedules_course_code_fkey(code, name, level, semester), course_doctors(id, whatsapp_link, teams_code, doctors(id, name), doctor_slots(*)), sections(*, section_slots(*))",
       );
 
     if (schedulesError) throw schedulesError;
@@ -89,14 +106,23 @@ async function loadScheduleFromSupabase() {
         const doctors = [];
         const sections = [];
 
-        (schedule.doctors || []).forEach((doc) => {
+        (schedule.course_doctors || []).forEach((cd) => {
+          if (!cd.doctors) {
+            console.error(
+              `course_doctors id ${cd.id} has no linked doctor`,
+            );
+            return;
+          }
           const scheduleByDay = {};
-          (doc.doctor_slots || []).forEach((slot) => {
+          (cd.doctor_slots || []).forEach((slot) => {
             if (!scheduleByDay[slot.day]) scheduleByDay[slot.day] = [];
             scheduleByDay[slot.day].push({
               id: slot.slot_number,
               g: slot.group_name,
-              teamsCode: slot.teams_code || "",
+              // Slot-level code (legacy per-group override) wins if present,
+              // otherwise fall back to the assignment-level code. Nullish
+              // coalescing only — an empty string is never a valid code.
+              teamsCode: slot.teams_code ?? cd.teams_code ?? null,
             });
           });
 
@@ -106,8 +132,10 @@ async function loadScheduleFromSupabase() {
           }));
 
           doctors.push({
-            name: doc.name,
-            whatsappLink: doc.whatsapp_link || "",
+            doctor_id: cd.doctors.id,
+            course_doctor_id: cd.id,
+            name: cd.doctors.name,
+            whatsappLink: cd.whatsapp_link ?? null,
             schedule: formattedSchedule,
           });
         });
@@ -163,17 +191,25 @@ async function loadScheduleFromSupabase() {
   }
 }
 
+// A Teams code / WhatsApp link counts as available ONLY if it is a non-blank
+// string. NULL, undefined and "" (e.g. legacy section data, which still uses
+// "") all mean "not available". Missing values are never turned into fake
+// links or placeholder text.
+function hasContactValue(value) {
+  return typeof value === "string" && value.trim() !== "";
+}
+
 function normalizeSlotData(slot) {
   return {
     ...slot,
-    teamsCode: slot?.teamsCode || "",
+    teamsCode: slot?.teamsCode ?? null,
   };
 }
 
 function normalizeProviderData(provider) {
   return {
     ...provider,
-    whatsappLink: provider?.whatsappLink || "",
+    whatsappLink: provider?.whatsappLink ?? null,
     schedule: (provider?.schedule || []).map((dayItem) => ({
       ...dayItem,
       slots: (dayItem?.slots || []).map(normalizeSlotData),
@@ -210,1271 +246,15 @@ const days = [
 
 // 2. Data - UPDATED: No 'code' property, only 'name'
 const updatedCoursesData = {
-  1: [
-    // Coming Soon - Level 1 data will be added here later
-    {
-      name: "⚠️ Coming Soon",
-      color: "#94a3b8",
-      doctors: [
-        {
-          name: "Level 1 courses will be added soon",
-          schedule: [{ day: "Saturday", slots: [{ id: 1, g: "INFO" }] }],
-        },
-      ],
-    },
-  ],
-  2: [
-    {
-      name: "Money and Banking",
-      color: "#ef4444",
-      doctors: [
-        {
-          name: "Dr. Mahmoud Eltony",
-          schedule: [
-            {
-              day: "Saturday",
-              slots: [
-                { id: 2, g: "G18" },
-                { id: 3, g: "G19" },
-              ],
-            },
-            {
-              day: "Sunday",
-              slots: [
-                { id: 1, g: "G20" },
-                { id: 2, g: "G21" },
-                { id: 3, g: "G22" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Mohamed Abdel Wahid",
-          schedule: [
-            {
-              day: "Saturday",
-              slots: [
-                { id: 1, g: "G1" },
-                { id: 2, g: "G2" },
-                { id: 3, g: "G3" },
-              ],
-            },
-            {
-              day: "Sunday",
-              slots: [
-                { id: 1, g: "G4" },
-                { id: 2, g: "G5" },
-                { id: 3, g: "G6" },
-              ],
-            },
-            {
-              day: "Monday",
-              slots: [
-                { id: 1, g: "G7" },
-                { id: 2, g: "G8" },
-                { id: 3, g: "G9" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Gaber Abdel Gawad",
-          schedule: [
-            {
-              day: "Sunday",
-              slots: [
-                { id: 1, g: "G10" },
-                { id: 2, g: "G11" },
-                { id: 3, g: "G12" },
-              ],
-            },
-            {
-              day: "Monday",
-              slots: [
-                { id: 1, g: "G13" },
-                { id: 2, g: "G14" },
-                { id: 3, g: "G15" },
-              ],
-            },
-            {
-              day: "Wednesday",
-              slots: [
-                { id: 1, g: "G16" },
-                { id: 2, g: "G17" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Thoraya",
-          schedule: [
-            {
-              day: "Thursday",
-              slots: [
-                { id: 1, g: "G24" },
-                { id: 2, g: "G25" },
-                { id: 3, g: "G26" },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: "Accounting for Corporations",
-      color: "#3b82f6",
-      doctors: [
-        {
-          name: "Dr. Amr Hassan",
-          schedule: [
-            {
-              day: "Sunday",
-              slots: [
-                { id: 1, g: "G10" },
-                { id: 2, g: "G11" },
-              ],
-            },
-            {
-              day: "Monday",
-              slots: [
-                { id: 1, g: "G12" },
-                { id: 2, g: "G13" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Mohamed El Ardy",
-          schedule: [
-            {
-              day: "Saturday",
-              slots: [
-                { id: 1, g: "G1" },
-                { id: 2, g: "G2" },
-              ],
-            },
-            {
-              day: "Sunday",
-              slots: [
-                { id: 1, g: "G3" },
-                { id: 2, g: "G4" },
-                { id: 4, g: "G5" },
-              ],
-            },
-            {
-              day: "Monday",
-              slots: [
-                { id: 1, g: "G6" },
-                { id: 2, g: "G7" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Ahmed Ibrahim",
-          schedule: [
-            { day: "Saturday", slots: [{ id: 3, g: "G14" }] },
-            {
-              day: "Sunday",
-              slots: [
-                { id: 1, g: "G15" },
-                { id: 2, g: "G16" },
-                { id: 4, g: "G17" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Soha Samir",
-          schedule: [
-            {
-              day: "Sunday",
-              slots: [
-                { id: 1, g: "G18" },
-                { id: 2, g: "G19" },
-                { id: 3, g: "G20" },
-              ],
-            },
-            {
-              day: "Monday",
-              slots: [
-                { id: 1, g: "G21" },
-                { id: 2, g: "G22" },
-                { id: 3, g: "G23" },
-              ],
-            },
-            {
-              day: "Thursday",
-              slots: [
-                { id: 1, g: "G24" },
-                { id: 2, g: "G25" },
-                { id: 3, g: "G26" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Yasmeen Abdel Aal",
-          schedule: [
-            {
-              day: "Monday",
-              slots: [
-                { id: 1, g: "G8" },
-                { id: 2, g: "G9" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Hamdy Habl",
-          schedule: [
-            {
-              day: "Thursday",
-              slots: [
-                { id: 1, g: "G22" },
-                { id: 2, g: "G23" },
-                { id: 3, g: "G24" },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: "System Analysis 2",
-      color: "#8b5cf6",
-      sections: [],
-      doctors: [
-        {
-          name: "Dr. Menna Ibrahim",
-          schedule: [
-            {
-              day: "Monday",
-              slots: [
-                { id: 1, g: "G8" },
-                { id: 2, g: "G9" },
-                { id: 3, g: "G10" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Wael Karam",
-          schedule: [
-            { day: "Saturday", slots: [{ id: 4, g: "G1" }] },
-            {
-              day: "Thursday",
-              slots: [
-                { id: 2, g: "G2" },
-                { id: 3, g: "G3" },
-                { id: 4, g: "G4" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Ashraf Said",
-          schedule: [
-            { day: "Saturday", slots: [{ id: 1, g: "G22" }] },
-            { day: "Sunday", slots: [{ id: 2, g: "G15" }] },
-          ],
-        },
-        {
-          name: "Dr. Amr Galal",
-          schedule: [
-            {
-              day: "Saturday",
-              slots: [
-                { id: 2, g: "G5" },
-                { id: 3, g: "G6" },
-                { id: 4, g: "G7" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Antony",
-          schedule: [
-            {
-              day: "Tuesday",
-              slots: [
-                { id: 1, g: "G11" },
-                { id: 2, g: "G12" },
-                { id: 3, g: "G13" },
-              ],
-            },
-            { day: "Wednesday", slots: [{ id: 1, g: "G14" }] },
-          ],
-        },
-        {
-          name: "Dr. Walaa Mohamed",
-          schedule: [
-            {
-              day: "Wednesday",
-              slots: [
-                { id: 1, g: "G19" },
-                { id: 2, g: "G20" },
-                { id: 3, g: "G21" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Sara Naeem",
-          schedule: [
-            {
-              day: "Thursday",
-              slots: [
-                { id: 2, g: "G15" },
-                { id: 3, g: "G16" },
-                { id: 4, g: "G17" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Amira Mohie",
-          schedule: [
-            {
-              day: "Wednesday",
-              slots: [
-                { id: 1, g: "G23" },
-                { id: 2, g: "G24" },
-                { id: 3, g: "G25" },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: "Programming 2",
-      color: "#f59e0b",
-      sections: [],
-      doctors: [
-        {
-          name: "Dr. Mahmoud Bahlol",
-          schedule: [
-            {
-              day: "Sunday",
-              slots: [
-                { id: 1, g: "G25" },
-                { id: 2, g: "G26" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Amr Mansour",
-          schedule: [
-            {
-              day: "Saturday",
-              slots: [
-                { id: 4, g: "G21" },
-                { id: 5, g: "G22" },
-              ],
-            },
-            {
-              day: "Tuesday",
-              slots: [
-                { id: 2, g: "G23" },
-                { id: 3, g: "G24" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Wael Haider",
-          schedule: [
-            { day: "Tuesday", slots: [{ id: 3, g: "G17" }] },
-            {
-              day: "Thursday",
-              slots: [
-                { id: 2, g: "G18" },
-                { id: 3, g: "G19" },
-                { id: 4, g: "G20" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Mahmoud Halawa",
-          schedule: [
-            {
-              day: "Monday",
-              slots: [
-                { id: 1, g: "G9" },
-                { id: 2, g: "G10" },
-                { id: 3, g: "G11" },
-              ],
-            },
-            { day: "Wednesday", slots: [{ id: 1, g: "G12" }] },
-          ],
-        },
-        {
-          name: "Dr. Mohamed Atteya",
-          schedule: [
-            {
-              day: "Wednesday",
-              slots: [
-                { id: 4, g: "G5" },
-                { id: 5, g: "G6" },
-              ],
-            },
-            {
-              day: "Thursday",
-              slots: [
-                { id: 4, g: "G7" },
-                { id: 5, g: "G8" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Amr Ibrahim",
-          schedule: [
-            {
-              day: "Thursday",
-              slots: [
-                { id: 1, g: "G13" },
-                { id: 2, g: "G15" },
-                { id: 3, g: "G16" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Heba Mohsen",
-          schedule: [
-            {
-              day: "Thursday",
-              slots: [
-                { id: 1, g: "G1" },
-                { id: 2, g: "G2" },
-                { id: 3, g: "G3" },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: "Marketing",
-      color: "#ec4899",
-      doctors: [
-        {
-          name: "Dr. Wafaa Abdel Samie",
-          schedule: [
-            {
-              day: "Sunday",
-              slots: [
-                { id: 1, g: "G1" },
-                { id: 2, g: "G2" },
-                { id: 3, g: "G3" },
-              ],
-            },
-            { day: "Tuesday", slots: [{ id: 1, g: "G4" }] },
-            {
-              day: "Wednesday",
-              slots: [
-                { id: 1, g: "G5" },
-                { id: 2, g: "G6" },
-                { id: 3, g: "G7" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Rasha El Naggar",
-          schedule: [
-            {
-              day: "Sunday",
-              slots: [
-                { id: 1, g: "G8" },
-                { id: 2, g: "G9" },
-                { id: 3, g: "G10" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Amira Moussa",
-          schedule: [
-            {
-              day: "Wednesday",
-              slots: [
-                { id: 1, g: "G11" },
-                { id: 2, g: "G12" },
-                { id: 3, g: "G13" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Mohamed Ramadan",
-          schedule: [
-            {
-              day: "Tuesday",
-              slots: [
-                { id: 2, g: "G14" },
-                { id: 4, g: "G15" },
-                { id: 5, g: "G16" },
-              ],
-            },
-            {
-              day: "Wednesday",
-              slots: [
-                { id: 1, g: "G17" },
-                { id: 2, g: "G18" },
-                { id: 4, g: "G19" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Mostafa Youssef",
-          schedule: [
-            {
-              day: "Tuesday",
-              slots: [
-                { id: 2, g: "G20" },
-                { id: 4, g: "G21" },
-                { id: 5, g: "G22" },
-              ],
-            },
-            { day: "Thursday", slots: [{ id: 3, g: "G23" }] },
-          ],
-        },
-        {
-          name: "Dr. Sarah Hashem",
-          schedule: [
-            {
-              day: "Thursday",
-              slots: [
-                { id: 1, g: "G25" },
-                { id: 2, g: "G26" },
-                { id: 3, g: "G24" },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: "Creative Thinking",
-      color: "#14b8a6",
-      doctors: [
-        {
-          name: "Dr. Mohamed El Tayar",
-          schedule: [
-            {
-              day: "Thursday",
-              slots: [
-                { id: 2, g: "G17" },
-                { id: 3, g: "G18" },
-                { id: 4, g: "G19" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Mai Qenawi",
-          schedule: [
-            {
-              day: "Wednesday",
-              slots: [
-                { id: 1, g: "G14" },
-                { id: 2, g: "G15" },
-                { id: 3, g: "G16" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Hanan Morsi",
-          schedule: [
-            {
-              day: "Saturday",
-              slots: [
-                { id: 4, g: "G10" },
-                { id: 5, g: "G11" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Abeer El Ghandour",
-          schedule: [
-            {
-              day: "Sunday",
-              slots: [
-                { id: 1, g: "G1" },
-                { id: 2, g: "G2" },
-                { id: 3, g: "G3" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Mohamed Obeid",
-          schedule: [
-            {
-              day: "Monday",
-              slots: [
-                { id: 1, g: "G24" },
-                { id: 3, g: "G25" },
-                { id: 4, g: "G26" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Marwa El Badry",
-          schedule: [
-            {
-              day: "Monday",
-              slots: [
-                { id: 4, g: "G4" },
-                { id: 5, g: "G5" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Mona Zaghloul",
-          schedule: [
-            {
-              day: "Thursday",
-              slots: [
-                { id: 1, g: "G20" },
-                { id: 2, g: "G21" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Nahla El Shourbagy",
-          schedule: [
-            {
-              day: "Thursday",
-              slots: [
-                { id: 3, g: "G22" },
-                { id: 4, g: "G23" },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  ],
-  3: [
-    {
-      name: "Economics of Information",
-      color: "#6366f1",
-      doctors: [
-        {
-          name: "Dr. Somaya Abdel Mawla",
-          schedule: [
-            { day: "Saturday", slots: [{ id: 4, g: "G4" }] },
-            {
-              day: "Sunday",
-              slots: [
-                { id: 1, g: "G5" },
-                { id: 2, g: "G6" },
-                { id: 3, g: "G7" },
-              ],
-            },
-            {
-              day: "Wednesday",
-              slots: [
-                { id: 1, g: "G8" },
-                { id: 2, g: "G9" },
-                { id: 3, g: "G10" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Shaimaa Wehbe",
-          schedule: [
-            {
-              day: "Saturday",
-              slots: [
-                { id: 1, g: "G17" },
-                { id: 2, g: "G18" },
-                { id: 3, g: "G19" },
-              ],
-            },
-            {
-              day: "Monday",
-              slots: [
-                { id: 1, g: "G20" },
-                { id: 2, g: "G21" },
-              ],
-            },
-            {
-              day: "Wednesday",
-              slots: [
-                { id: 1, g: "G22" },
-                { id: 2, g: "G23" },
-                { id: 3, g: "G24" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Rasha El Kordi",
-          schedule: [
-            {
-              day: "Sunday",
-              slots: [
-                { id: 1, g: "G11" },
-                { id: 2, g: "G12" },
-                { id: 3, g: "G13" },
-              ],
-            },
-            {
-              day: "Monday",
-              slots: [
-                { id: 1, g: "G14" },
-                { id: 2, g: "G15" },
-                { id: 3, g: "G16" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Omar Salman",
-          schedule: [
-            {
-              day: "Wednesday",
-              slots: [
-                { id: 1, g: "G1" },
-                { id: 2, g: "G2" },
-                { id: 3, g: "G3" },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: "Auditing",
-      color: "#06b6d4",
-      doctors: [
-        {
-          name: "Dr. Eman Saad El Din",
-          schedule: [
-            { day: "Saturday", slots: [{ id: 5, g: "G18" }] },
-            {
-              day: "Monday",
-              slots: [
-                { id: 1, g: "G19" },
-                { id: 2, g: "G20" },
-                { id: 3, g: "G21" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Ashraf Mansour",
-          schedule: [
-            {
-              day: "Saturday",
-              slots: [
-                { id: 1, g: "G9" },
-                { id: 2, g: "G10" },
-                { id: 3, g: "G11" },
-              ],
-            },
-            {
-              day: "Sunday",
-              slots: [
-                { id: 1, g: "G12" },
-                { id: 2, g: "G13" },
-                { id: 3, g: "G14" },
-              ],
-            },
-            {
-              day: "Monday",
-              slots: [
-                { id: 1, g: "G15" },
-                { id: 2, g: "G16" },
-                { id: 3, g: "G17" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Hanan Jaber",
-          schedule: [
-            {
-              day: "Monday",
-              slots: [
-                { id: 1, g: "G1" },
-                { id: 2, g: "G2" },
-              ],
-            },
-            {
-              day: "Wednesday",
-              slots: [
-                { id: 1, g: "G3" },
-                { id: 2, g: "G4" },
-                { id: 3, g: "G5" },
-              ],
-            },
-            {
-              day: "Thursday",
-              slots: [
-                { id: 1, g: "G6" },
-                { id: 2, g: "G7" },
-                { id: 3, g: "G8" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Hamdy Habl",
-          schedule: [
-            {
-              day: "Thursday",
-              slots: [
-                { id: 1, g: "G22" },
-                { id: 2, g: "G23" },
-                { id: 3, g: "G24" },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: "Management Information Systems",
-      color: "#84cc16",
-      doctors: [
-        {
-          name: "Dr. Ahmed Mounir",
-          schedule: [
-            {
-              day: "Saturday",
-              slots: [
-                { id: 1, g: "G11" },
-                { id: 2, g: "G12" },
-                { id: 3, g: "G13" },
-              ],
-            },
-            { day: "Monday", slots: [{ id: 1, g: "G10" }] },
-          ],
-        },
-        {
-          name: "Dr. Bishoy",
-          schedule: [
-            {
-              day: "Saturday",
-              slots: [
-                { id: 1, g: "G17" },
-                { id: 2, g: "G18" },
-                { id: 3, g: "G19" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Christina Albert",
-          schedule: [
-            {
-              day: "Sunday",
-              slots: [
-                { id: 1, g: "G4" },
-                { id: 2, g: "G5" },
-                { id: 3, g: "G6" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Shirin Tayea",
-          schedule: [
-            {
-              day: "Monday",
-              slots: [
-                { id: 1, g: "G7" },
-                { id: 2, g: "G8" },
-                { id: 3, g: "G9" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Yehia Helmy",
-          schedule: [
-            {
-              day: "Monday",
-              slots: [
-                { id: 2, g: "G1" },
-                { id: 3, g: "G2" },
-                { id: 4, g: "G3" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Dalia Magdy",
-          schedule: [
-            {
-              day: "Wednesday",
-              slots: [
-                { id: 1, g: "G14" },
-                { id: 2, g: "G15" },
-                { id: 3, g: "G16" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Dina Helal",
-          schedule: [
-            {
-              day: "Thursday",
-              slots: [
-                { id: 1, g: "G20" },
-                { id: 2, g: "G21" },
-                { id: 3, g: "G22" },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: "Internet Application",
-      color: "#f43f5e",
-      doctors: [
-        {
-          name: "Dr. Amani Ahmed",
-          schedule: [
-            { day: "Saturday", slots: [{ id: 3, g: "G7" }] },
-            {
-              day: "Thursday",
-              slots: [
-                { id: 1, g: "G8" },
-                { id: 2, g: "G9" },
-                { id: 3, g: "G10" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Iman Hanafi",
-          schedule: [
-            {
-              day: "Saturday",
-              slots: [
-                { id: 1, g: "G22" },
-                { id: 2, g: "G23" },
-                { id: 3, g: "G24" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Mortada Salah El Din",
-          schedule: [
-            {
-              day: "Monday",
-              slots: [
-                { id: 1, g: "G1" },
-                { id: 2, g: "G2" },
-                { id: 4, g: "G3" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Ibrahim Zaghloul",
-          schedule: [
-            {
-              day: "Monday",
-              slots: [
-                { id: 2, g: "G4" },
-                { id: 3, g: "G5" },
-                { id: 4, g: "G6" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Nanis Nabil",
-          schedule: [
-            {
-              day: "Tuesday",
-              slots: [
-                { id: 1, g: "G15" },
-                { id: 2, g: "G16" },
-              ],
-            },
-            {
-              day: "Thursday",
-              slots: [
-                { id: 1, g: "G17" },
-                { id: 2, g: "G18" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Thanaa Mohamed",
-          schedule: [
-            {
-              day: "Wednesday",
-              slots: [
-                { id: 1, g: "G11" },
-                { id: 2, g: "G12" },
-              ],
-            },
-            {
-              day: "Thursday",
-              slots: [
-                { id: 1, g: "G13" },
-                { id: 2, g: "G14" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Noura Shoaib",
-          schedule: [
-            {
-              day: "Thursday",
-              slots: [
-                { id: 2, g: "G19" },
-                { id: 3, g: "G20" },
-                { id: 4, g: "G21" },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: "Advanced Database",
-      color: "#a855f7",
-      doctors: [
-        {
-          name: "Dr. Mohamed Hassan",
-          schedule: [
-            {
-              day: "Saturday",
-              slots: [
-                { id: 4, g: "G9" },
-                { id: 5, g: "G10" },
-              ],
-            },
-            {
-              day: "Wednesday",
-              slots: [
-                { id: 1, g: "G11" },
-                { id: 2, g: "G12" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Menna Mamdouh",
-          schedule: [
-            { day: "Sunday", slots: [{ id: 1, g: "G23" }] },
-            { day: "Wednesday", slots: [{ id: 1, g: "G24" }] },
-          ],
-        },
-        {
-          name: "Dr. Ibrahim El Desouki",
-          schedule: [
-            { day: "Monday", slots: [{ id: 1, g: "G5" }] },
-            {
-              day: "Wednesday",
-              slots: [
-                { id: 1, g: "G6" },
-                { id: 2, g: "G7" },
-                { id: 3, g: "G8" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Ahmed El Sidawy",
-          schedule: [
-            {
-              day: "Monday",
-              slots: [
-                { id: 4, g: "G1" },
-                { id: 5, g: "G2" },
-              ],
-            },
-            {
-              day: "Thursday",
-              slots: [
-                { id: 3, g: "G3" },
-                { id: 4, g: "G4" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Yasser El Gedawy",
-          schedule: [
-            { day: "Monday", slots: [{ id: 1, g: "G19" }] },
-            {
-              day: "Wednesday",
-              slots: [
-                { id: 1, g: "G20" },
-                { id: 4, g: "G21" },
-                { id: 5, g: "G22" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Mira Tamer",
-          schedule: [
-            {
-              day: "Tuesday",
-              slots: [
-                { id: 1, g: "G16" },
-                { id: 2, g: "G17" },
-                { id: 3, g: "G18" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Hany Gouda",
-          schedule: [
-            {
-              day: "Thursday",
-              slots: [
-                { id: 1, g: "G13" },
-                { id: 2, g: "G14" },
-                { id: 3, g: "G15" },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: "Operation Research",
-      color: "#fbbf24",
-      doctors: [
-        {
-          name: "Dr. Ghada Taha",
-          schedule: [
-            {
-              day: "Sunday",
-              slots: [
-                { id: 1, g: "G15" },
-                { id: 2, g: "G16" },
-                { id: 3, g: "G17" },
-              ],
-            },
-            { day: "Wednesday", slots: [{ id: 1, g: "G18" }] },
-          ],
-        },
-        {
-          name: "Dr. Mahmoud Sadeq",
-          schedule: [
-            {
-              day: "Sunday",
-              slots: [
-                { id: 1, g: "G11" },
-                { id: 2, g: "G12" },
-              ],
-            },
-            {
-              day: "Wednesday",
-              slots: [
-                { id: 1, g: "G13" },
-                { id: 2, g: "G14" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Ahmed Abdel Hadi",
-          schedule: [
-            {
-              day: "Monday",
-              slots: [
-                { id: 1, g: "G1" },
-                { id: 2, g: "G2" },
-                { id: 5, g: "G3" },
-              ],
-            },
-            {
-              day: "Wednesday",
-              slots: [
-                { id: 1, g: "G4" },
-                { id: 3, g: "G5" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Khaled Mohamed",
-          schedule: [
-            {
-              day: "Monday",
-              slots: [
-                { id: 1, g: "G19" },
-                { id: 1, g: "G21" },
-                { id: 4, g: "G20" },
-              ],
-            },
-            {
-              day: "Thursday",
-              slots: [
-                { id: 1, g: "G22" },
-                { id: 2, g: "G23" },
-                { id: 4, g: "G24" },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Dr. Hend Atteya",
-          schedule: [
-            {
-              day: "Tuesday",
-              slots: [
-                { id: 2, g: "G6" },
-                { id: 3, g: "G7" },
-              ],
-            },
-            {
-              day: "Thursday",
-              slots: [
-                { id: 1, g: "G8" },
-                { id: 2, g: "G9" },
-                { id: 3, g: "G10" },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  ],
-  4: [
-    // Coming Soon - Level 4 data will be added here later
-    {
-      name: "⚠️ Coming Soon",
-      color: "#94a3b8",
-      doctors: [
-        {
-          name: "Level 4 courses will be added soon",
-          schedule: [{ day: "Saturday", slots: [{ id: 1, g: "INFO" }] }],
-        },
-      ],
-    },
-  ],
+  // Level 1: no hardcoded fallback. Readiness is controlled by the
+  // level_1_visible setting (admin), not by a fake placeholder subject.
+  1: [],
+  // Level 2: no hardcoded fallback. Courses come only from Supabase; if none
+  // are returned for a visible level, the empty state is shown (see loadSubjects).
+  2: [],
+  3: [],
+  // Level 4: no hardcoded fallback (see Level 1 note).
+  4: [],
 };
 
 Object.keys(updatedCoursesData).forEach((level) => {
@@ -1497,7 +277,7 @@ function getCellEntries(key) {
     const legacy = { ...scheduleData[key] };
     if (!legacy.entryId) legacy.entryId = makeEntryId();
     if (!legacy.type) legacy.type = "lecture";
-    if (!legacy.teamsCode) legacy.teamsCode = "";
+    if (legacy.teamsCode === undefined) legacy.teamsCode = null;
     scheduleData[key] = [legacy];
     return scheduleData[key];
   }
@@ -1544,7 +324,7 @@ function getSectionList(course) {
     .filter((doctor) => /sec/i.test(doctor.name))
     .map((section) => ({
       name: section.name,
-      whatsappLink: section.whatsappLink || "",
+      whatsappLink: section.whatsappLink ?? null,
       schedule: section.schedule,
     }));
 }
@@ -1603,13 +383,49 @@ function syncToggleUI() {
   });
 }
 
+// OFF level: the current-semester schedule is not ready. Drop EVERY piece of
+// level-dependent state and DOM so no previously loaded schedule (from another
+// level, the hardcoded fallback, or an earlier fetch) can remain visible, then
+// show the notice. selectedYear becomes null so no other code path
+// (mode toggle, refresh after fetch, export) can act on an OFF level.
+function showLevelNotReady(year) {
+  selectedYear = null;
+  scheduleData = {};
+  previewData = null;
+  draggedSlot = null;
+  closeQuickActions();
+
+  document.getElementById("subjectsContainer").innerHTML = "";
+  document.getElementById("subjectSection").style.display = "none";
+  document.getElementById("scheduleSection").style.display = "none";
+  initScheduleTable(); // wipes the timetable DOM
+
+  const notice = document.getElementById("levelNotReadyNotice");
+  notice.textContent =
+    `Level ${year}: This level's schedule has not been updated for the ` +
+    `current semester yet. Work is currently in progress.`;
+  notice.style.display = "block";
+}
+
+function hideLevelNotReady() {
+  const notice = document.getElementById("levelNotReadyNotice");
+  if (notice) notice.style.display = "none";
+}
+
 function selectYear(year) {
-  selectedYear = year;
   document
     .querySelectorAll(".year-card")
     .forEach((c) => c.classList.remove("active"));
   if (window.event)
     window.event.currentTarget.closest(".year-card").classList.add("active");
+
+  // Visibility gate: ON -> normal flow, OFF -> not-ready notice, nothing else.
+  if (!isLevelVisible(year)) {
+    showLevelNotReady(year);
+    return;
+  }
+  hideLevelNotReady();
+  selectedYear = year;
 
   // Reset mode first so loadSubjects renders the correct tab immediately
   selectionMode = "lectures";
@@ -1627,6 +443,12 @@ function selectYear(year) {
 function loadSubjects(year) {
   const container = document.getElementById("subjectsContainer");
   container.innerHTML = "";
+
+  // Defense in depth: no caller can render subjects for an OFF level.
+  if (!isLevelVisible(year)) {
+    showLevelNotReady(year);
+    return;
+  }
 
   const allCourses = updatedCoursesData[year] || [];
 
@@ -1735,7 +557,7 @@ function loadSubjects(year) {
         color,
         schedule: selectedOption.schedule,
         type,
-        whatsappLink: selectedOption.whatsappLink || "#",
+        whatsappLink: selectedOption.whatsappLink ?? null,
       },
       item,
     );
@@ -1936,7 +758,7 @@ function handleSlotClick(day, slotId) {
       ...previewData,
       entryId: makeEntryId(), // fresh ID for this single placement
       group: chosenSlot.g,
-      teamsCode: chosenSlot.teamsCode || "",
+      teamsCode: chosenSlot.teamsCode ?? null,
       half: assignedHalf,
     });
   } else {
@@ -1945,7 +767,7 @@ function handleSlotClick(day, slotId) {
     addEntryToCell(key, {
       ...previewData,
       group: slotData.g,
-      teamsCode: slotData.teamsCode || "",
+      teamsCode: slotData.teamsCode ?? null,
       half: null,
     });
   }
@@ -2160,7 +982,7 @@ function handleDrop(e, targetDay, targetSlotId) {
     addEntryToCell(targetKey, {
       ...draggedSlot.data,
       group: resolvedSlot.g,
-      teamsCode: resolvedSlot.teamsCode || "",
+      teamsCode: resolvedSlot.teamsCode ?? null,
       half: assignedHalf,
     });
   } else {
@@ -2178,7 +1000,7 @@ function handleDrop(e, targetDay, targetSlotId) {
     addEntryToCell(targetKey, {
       ...draggedSlot.data,
       group: slotAvailability.g,
-      teamsCode: slotAvailability.teamsCode || "",
+      teamsCode: slotAvailability.teamsCode ?? null,
       half: null,
     });
   }
@@ -2195,11 +1017,23 @@ function openQuickActions(entry, event) {
   const menu = document.createElement("div");
   menu.className = "quick-actions-menu";
   menu.id = "quickActionsMenu";
+  const teamsAvailable = hasContactValue(entry.teamsCode);
+  const whatsappAvailable = hasContactValue(entry.whatsappLink);
+
+  // Real value -> functional action. Missing value -> a clearly disabled,
+  // non-clickable "unavailable" state (no fake link, no placeholder code).
+  const teamsButton = teamsAvailable
+    ? '<button type="button" class="quick-btn" data-action="copy">Copy Teams Code</button>'
+    : '<button type="button" class="quick-btn" disabled aria-disabled="true">Teams code unavailable</button>';
+  const whatsappButton = whatsappAvailable
+    ? '<button type="button" class="quick-btn" data-action="whatsapp">Go to WhatsApp Group</button>'
+    : '<button type="button" class="quick-btn" disabled aria-disabled="true">WhatsApp group unavailable</button>';
+
   menu.innerHTML = `
         <div class="quick-title">${entry.name} - ${entry.group}${entry.type === "section" ? ' <span class="sec-pill">SEC</span>' : ""}</div>
         <div class="quick-sub">${entry.doctor}</div>
-        <button type="button" class="quick-btn" data-action="copy">Copy Teams Code</button>
-        <button type="button" class="quick-btn" data-action="whatsapp">Go to WhatsApp Group</button>
+        ${teamsButton}
+        ${whatsappButton}
         <button type="button" class="quick-btn danger" data-action="remove">Remove from Schedule</button>
     `;
   document.body.appendChild(menu);
@@ -2211,8 +1045,8 @@ function openQuickActions(entry, event) {
 
   menu
     .querySelector('[data-action="copy"]')
-    .addEventListener("click", async () => {
-      const teamsCode = entry.teamsCode || "Coming Soon";
+    ?.addEventListener("click", async () => {
+      const teamsCode = entry.teamsCode;
       try {
         if (navigator.clipboard) {
           await navigator.clipboard.writeText(teamsCode);
@@ -2227,11 +1061,7 @@ function openQuickActions(entry, event) {
 
   menu
     .querySelector('[data-action="whatsapp"]')
-    .addEventListener("click", () => {
-      if (!entry.whatsappLink || entry.whatsappLink === "#") {
-        alert("Contact link will be available soon.");
-        return;
-      }
+    ?.addEventListener("click", () => {
       window.open(entry.whatsappLink, "_blank");
     });
 
@@ -2333,6 +1163,7 @@ function resetSchedule() {
 
     document.getElementById("subjectSection").style.display = "none";
     document.getElementById("scheduleSection").style.display = "none";
+    hideLevelNotReady();
 
     document.querySelectorAll(".year-card").forEach((card) => {
       card.classList.remove("active");

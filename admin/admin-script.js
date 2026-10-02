@@ -41,14 +41,14 @@ const DAYS = [
 function normalizeSlot(slot) {
   return {
     ...slot,
-    teamsCode: slot?.teamsCode || "",
+    teamsCode: slot?.teamsCode ?? null,
   };
 }
 
 function normalizeProvider(provider) {
   return {
     ...provider,
-    whatsappLink: provider?.whatsappLink || "",
+    whatsappLink: provider?.whatsappLink ?? null,
     schedule: (provider?.schedule || []).map((dayItem) => ({
       ...dayItem,
       slots: (dayItem?.slots || []).map(normalizeSlot),
@@ -347,6 +347,13 @@ async function loadAllData() {
         } else if (setting.key === "is_semester_2_active") {
           const el = document.getElementById("activeSemesterToggle");
           if (el) el.checked = setting.value;
+        } else if (/^level_[1-4]_visible$/.test(setting.key)) {
+          // Missing row => toggle stays ON (markup default); only an
+          // explicit false shows OFF.
+          const el = document.getElementById(
+            `levelVisibleToggle${setting.key.charAt(6)}`,
+          );
+          if (el) el.checked = setting.value !== false;
         }
       });
     }
@@ -355,7 +362,7 @@ async function loadAllData() {
     const { data: schedulesData, error: schedulesError } = await supabase
       .from("course_schedules")
       .select(
-        "*, courses!course_schedules_course_code_fkey(code, name, level, semester), doctors(*, doctor_slots(*)), sections(*, section_slots(*))",
+        "*, courses!course_schedules_course_code_fkey(code, name, level, semester), course_doctors(id, whatsapp_link, teams_code, doctors(id, name), doctor_slots(*)), sections(*, section_slots(*))",
       );
 
     if (schedulesError) throw schedulesError;
@@ -373,15 +380,27 @@ async function loadAllData() {
         const doctors = [];
         const sections = [];
 
-        (schedule.doctors || []).forEach((doc) => {
+        (schedule.course_doctors || []).forEach((cd) => {
+          if (!cd.doctors) {
+            console.error(
+              `course_doctors id ${cd.id} has no linked doctor`,
+            );
+            return;
+          }
           const scheduleByDay = {};
-          (doc.doctor_slots || []).forEach((slot) => {
+          (cd.doctor_slots || []).forEach((slot) => {
             if (!scheduleByDay[slot.day]) scheduleByDay[slot.day] = [];
             scheduleByDay[slot.day].push({
               db_id: slot.id,
               id: slot.slot_number,
               g: slot.group_name,
-              teamsCode: slot.teams_code || "",
+              // RAW slot-level value only. The admin form writes this value
+              // back to doctor_slots.teams_code on save, so the assignment-level
+              // code (course_doctors.teams_code) must NOT be merged in here --
+              // otherwise saving a subject would copy the course-wide code into
+              // every slot as a stale per-slot override. The slot -> assignment
+              // fallback is a student-display concern only.
+              teamsCode: slot.teams_code ?? null,
             });
           });
 
@@ -390,10 +409,15 @@ async function loadAllData() {
             slots: scheduleByDay[day],
           }));
 
+          // NOTE: doctor_id (the person) and course_doctor_id (this specific
+          // course assignment) are kept distinct on purpose -- never
+          // collapsed into a single `id`. The save/delete logic (Phase 3)
+          // uses provider.courseDoctorId / provider.doctorId explicitly.
           doctors.push({
-            id: doc.id,
-            name: doc.name,
-            whatsappLink: doc.whatsapp_link || "",
+            doctor_id: cd.doctors.id,
+            course_doctor_id: cd.id,
+            name: cd.doctors.name,
+            whatsappLink: cd.whatsapp_link ?? null,
             schedule: formattedSchedule,
           });
         });
@@ -1110,7 +1134,7 @@ function saveDoctorSchedule() {
     const slotData = {
       id: timeId,
       g: groupId || "",
-      teamsCode: teamsCode || "",
+      teamsCode: teamsCode || null,
     };
     if (dbId) slotData.db_id = dbId;
     if (slotMode === "section") {
@@ -1156,6 +1180,46 @@ function closeDoctorModal() {
   currentBuildingDoctorIndex = null;
 }
 
+// Resolve the global "doctors" person row for a submitted doctor entry.
+// - If the entry already carries a known doctorId (loaded from an existing
+//   course_doctors assignment), that person is used directly -- no lookup.
+// - Otherwise this is a new/legacy entry with only a name: look for an exact
+//   name match. Exactly one match -> reuse that person. Zero matches ->
+//   create a new person. Multiple matches -> this is ambiguous (e.g. the
+//   "two different people named Dr. Amr Mansour" case) and must NOT be
+//   auto-resolved; the save is aborted for the admin to resolve manually.
+async function resolveDoctorPerson(provider) {
+  if (provider.doctorId) {
+    return provider.doctorId;
+  }
+
+  const { data: matches, error: lookupError } = await supabase
+    .from("doctors")
+    .select("id")
+    .eq("name", provider.name);
+  if (lookupError) throw lookupError;
+
+  if (matches && matches.length === 1) {
+    return matches[0].id;
+  }
+
+  if (matches && matches.length > 1) {
+    throw new Error(
+      `Multiple existing doctors are named "${provider.name}" and this entry isn't linked to a specific one. ` +
+        `Cannot determine which person this is automatically -- please resolve this manually before saving.`,
+    );
+  }
+
+  const { data: newDoctor, error: createError } = await supabase
+    .from("doctors")
+    .insert({ name: provider.name })
+    .select("id")
+    .single();
+  if (createError) throw createError;
+  if (!newDoctor) throw new Error("No data returned from doctor creation");
+  return newDoctor.id;
+}
+
 // Schedule Form Submit (Auto-JSON Conversion)
 document
   .getElementById("scheduleForm")
@@ -1183,15 +1247,35 @@ document
       if (!name) return;
 
       const schedule = scheduleJSON ? JSON.parse(scheduleJSON) : [];
-      const provider = {
-        name: name || "",
-        whatsappLink: whatsappLink || "",
-        schedule: schedule || [],
-      };
+
       if (providerType === "section") {
-        subjectData.sections.push(provider);
+        // Sections are out of scope for this refactor -- unchanged pattern.
+        const sectionId = entry.dataset.sectionId
+          ? Number(entry.dataset.sectionId)
+          : null;
+        subjectData.sections.push({
+          ...(sectionId ? { id: sectionId } : {}),
+          name: name || "",
+          whatsappLink: whatsappLink || "",
+          schedule: schedule || [],
+        });
       } else {
-        subjectData.doctors.push(provider);
+        // doctorId = the global person (doctors.id), if already known.
+        // courseDoctorId = this specific course assignment (course_doctors.id),
+        // if already known. Neither is assumed from a single ambiguous `id`.
+        const doctorId = entry.dataset.doctorId
+          ? Number(entry.dataset.doctorId)
+          : null;
+        const courseDoctorId = entry.dataset.courseDoctorId
+          ? Number(entry.dataset.courseDoctorId)
+          : null;
+        subjectData.doctors.push({
+          doctorId,
+          courseDoctorId,
+          name: name || "",
+          whatsappLink: whatsappLink || "",
+          schedule: schedule || [],
+        });
       }
     });
 
@@ -1235,38 +1319,71 @@ document
       scheduleDbId = savedSchedule.id;
 
       // Save Doctors
-      const activeDocIds = [];
+      const activeCourseDoctorIds = [];
       for (const provider of subjectData.doctors) {
-        const { data: savedDoc, error: docError } = await supabase
-          .from("doctors")
-          .upsert(
-            {
-              ...(provider.id ? { id: provider.id } : {}),
-              course_schedule_id: scheduleDbId,
-              name: provider.name,
-              whatsapp_link: provider.whatsappLink || "",
-            },
-            { onConflict: "id" },
-          )
-          .select()
-          .single();
+        let courseDoctorId = provider.courseDoctorId || null;
 
-        if (docError) throw docError;
-        if (!savedDoc) throw new Error("No data returned from doctor save");
+        if (courseDoctorId) {
+          // Known assignment -- update its assignment-level fields only.
+          // teams_code is intentionally NOT touched here: this form has no
+          // assignment-level Teams input, and must never clobber a value
+          // set elsewhere (e.g. once per-course Teams codes are introduced).
+          const { error: updateCdError } = await supabase
+            .from("course_doctors")
+            .update({ whatsapp_link: provider.whatsappLink || null })
+            .eq("id", courseDoctorId);
+          if (updateCdError) throw updateCdError;
+        } else {
+          // Unknown assignment -- resolve the person, then find or create
+          // the (doctor_id, course_schedule_id) assignment.
+          const doctorId = await resolveDoctorPerson(provider);
+          provider.doctorId = doctorId;
 
-        const docId = savedDoc.id;
-        activeDocIds.push(docId);
+          const { data: existingCd, error: findCdError } = await supabase
+            .from("course_doctors")
+            .select("id")
+            .eq("doctor_id", doctorId)
+            .eq("course_schedule_id", scheduleDbId)
+            .maybeSingle();
+          if (findCdError) throw findCdError;
+
+          if (existingCd) {
+            courseDoctorId = existingCd.id;
+            const { error: updateCdError2 } = await supabase
+              .from("course_doctors")
+              .update({ whatsapp_link: provider.whatsappLink || null })
+              .eq("id", courseDoctorId);
+            if (updateCdError2) throw updateCdError2;
+          } else {
+            const { data: createdCd, error: createCdError } = await supabase
+              .from("course_doctors")
+              .insert({
+                doctor_id: doctorId,
+                course_schedule_id: scheduleDbId,
+                whatsapp_link: provider.whatsappLink || null,
+              })
+              .select("id")
+              .single();
+            if (createCdError) throw createCdError;
+            if (!createdCd)
+              throw new Error("No data returned from assignment creation");
+            courseDoctorId = createdCd.id;
+          }
+        }
+
+        provider.courseDoctorId = courseDoctorId;
+        activeCourseDoctorIds.push(courseDoctorId);
 
         const slotsToUpsert = [];
         const activeSlotIds = [];
         provider.schedule.forEach((dayInfo) => {
           dayInfo.slots.forEach((slot) => {
             const slotPayload = {
-              doctor_id: docId,
+              course_doctor_id: courseDoctorId,
               day: dayInfo.day,
               group_name: slot.g,
               slot_number: slot.id,
-              teams_code: slot.teamsCode || "",
+              teams_code: slot.teamsCode || null,
             };
             if (slot.db_id) {
               slotPayload.id = slot.db_id;
@@ -1289,30 +1406,40 @@ document
           }
         }
 
-        // Clean up removed doctor slots
+        // Clean up removed slots for this assignment only.
         if (activeSlotIds.length > 0) {
-          await supabase
+          const { error: slotCleanupError } = await supabase
             .from("doctor_slots")
             .delete()
-            .eq("doctor_id", docId)
+            .eq("course_doctor_id", courseDoctorId)
             .not("id", "in", `(${activeSlotIds.join(",")})`);
+          if (slotCleanupError) throw slotCleanupError;
         } else {
-          await supabase.from("doctor_slots").delete().eq("doctor_id", docId);
+          const { error: slotCleanupError2 } = await supabase
+            .from("doctor_slots")
+            .delete()
+            .eq("course_doctor_id", courseDoctorId);
+          if (slotCleanupError2) throw slotCleanupError2;
         }
       }
 
-      // Clean up removed doctors
-      if (activeDocIds.length > 0) {
-        await supabase
-          .from("doctors")
+      // Clean up removed assignments for this course only.
+      // This deletes from course_doctors (the assignment), NEVER from
+      // doctors (the person) -- removing a doctor from one course must
+      // never affect their other course assignments or their person row.
+      if (activeCourseDoctorIds.length > 0) {
+        const { error: cdCleanupError } = await supabase
+          .from("course_doctors")
           .delete()
           .eq("course_schedule_id", scheduleDbId)
-          .not("id", "in", `(${activeDocIds.join(",")})`);
+          .not("id", "in", `(${activeCourseDoctorIds.join(",")})`);
+        if (cdCleanupError) throw cdCleanupError;
       } else {
-        await supabase
-          .from("doctors")
+        const { error: cdCleanupError2 } = await supabase
+          .from("course_doctors")
           .delete()
           .eq("course_schedule_id", scheduleDbId);
+        if (cdCleanupError2) throw cdCleanupError2;
       }
 
       // Save Sections
@@ -1520,6 +1647,20 @@ function editSubject(level, subjectId) {
       doctor.schedule,
     );
 
+    if (doctor._type === "section") {
+      // Sections are unchanged -- single id, as before.
+      if (doctor.id) lastEntry.dataset.sectionId = doctor.id;
+    } else {
+      // Doctors: carry the person and assignment identities separately so
+      // the next save resolves/updates the exact same records instead of
+      // creating new ones. These come from the course_doctors-based fetch
+      // (Phase 2) -- doctor_id is the person, course_doctor_id is this
+      // specific course assignment.
+      if (doctor.doctor_id) lastEntry.dataset.doctorId = doctor.doctor_id;
+      if (doctor.course_doctor_id)
+        lastEntry.dataset.courseDoctorId = doctor.course_doctor_id;
+    }
+
     const totalSlots = doctor.schedule.reduce(
       (sum, day) => sum + day.slots.length,
       0,
@@ -1597,7 +1738,7 @@ window.saveDoctorSchedule = function () {
       const slotData = {
         id: timeId,
         g: groupId || "",
-        teamsCode: teamsCode || "",
+        teamsCode: teamsCode || null,
       };
       if (dbId) slotData.db_id = dbId;
       if (providerKey === "sections") {
@@ -1628,23 +1769,28 @@ window.saveDoctorSchedule = function () {
       scheduleData[level][subjectIndex][providerKey][doctorIndex];
     provider.schedule = schedule;
 
-    // Save to Supabase (if the doctor has an ID in the DB)
-    if (provider.id) {
+    // Save to Supabase (if this assignment already exists in the DB)
+    // Doctors: use course_doctor_id (the assignment), never a bare person id.
+    // Sections: unchanged -- they still use their own single id.
+    const assignmentId =
+      providerKey === "sections" ? provider.id : provider.course_doctor_id;
+
+    if (assignmentId) {
       const slotsToUpsert = [];
       const activeSlotIds = [];
       provider.schedule.forEach((dayInfo) => {
         dayInfo.slots.forEach((slot) => {
           const slotPayload = {
-            doctor_id: provider.id,
             day: dayInfo.day,
             group_name: slot.g,
             slot_number: slot.id,
-            teams_code: slot.teamsCode || "",
+            teams_code: slot.teamsCode || null,
           };
           if (providerKey === "sections") {
-            slotPayload.section_id = provider.id;
-            delete slotPayload.doctor_id;
+            slotPayload.section_id = assignmentId;
             slotPayload.h = slot.h || null;
+          } else {
+            slotPayload.course_doctor_id = assignmentId;
           }
           if (slot.db_id) {
             slotPayload.id = slot.db_id;
@@ -1656,7 +1802,8 @@ window.saveDoctorSchedule = function () {
 
       const tableName =
         providerKey === "sections" ? "section_slots" : "doctor_slots";
-      const fkName = providerKey === "sections" ? "section_id" : "doctor_id";
+      const fkName =
+        providerKey === "sections" ? "section_id" : "course_doctor_id";
 
       (async () => {
         try {
@@ -1675,13 +1822,18 @@ window.saveDoctorSchedule = function () {
           }
 
           if (activeSlotIds.length > 0) {
-            await supabase
+            const { error: cleanupError } = await supabase
               .from(tableName)
               .delete()
-              .eq(fkName, provider.id)
+              .eq(fkName, assignmentId)
               .not("id", "in", `(${activeSlotIds.join(",")})`);
+            if (cleanupError) throw cleanupError;
           } else {
-            await supabase.from(tableName).delete().eq(fkName, provider.id);
+            const { error: cleanupError2 } = await supabase
+              .from(tableName)
+              .delete()
+              .eq(fkName, assignmentId);
+            if (cleanupError2) throw cleanupError2;
           }
 
           loadScheduleForLevel(level);
@@ -1782,6 +1934,10 @@ async function updateSiteSetting(key, value) {
       courses_renewal_pending: "coursesRenewalToggle",
       maintenance_mode: "maintenanceModeToggle",
       is_semester_2_active: "activeSemesterToggle",
+      level_1_visible: "levelVisibleToggle1",
+      level_2_visible: "levelVisibleToggle2",
+      level_3_visible: "levelVisibleToggle3",
+      level_4_visible: "levelVisibleToggle4",
     };
     const el = document.getElementById(elementMap[key]);
     if (el) el.checked = !value;
@@ -1811,6 +1967,17 @@ document
   ?.addEventListener("change", (e) => {
     updateSiteSetting("maintenance_mode", e.target.checked);
   });
+
+// Level readiness (current semester): ON = schedule ready for students,
+// OFF = students see the "not updated yet" notice. Persisted in the shared
+// site_settings table, so students read the same state.
+[1, 2, 3, 4].forEach((n) => {
+  document
+    .getElementById(`levelVisibleToggle${n}`)
+    ?.addEventListener("change", (e) => {
+      updateSiteSetting(`level_${n}_visible`, e.target.checked);
+    });
+});
 
 // Initialize
 console.log("BIS Admin Panel Loaded");

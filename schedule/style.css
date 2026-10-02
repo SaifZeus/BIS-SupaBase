@@ -1139,3 +1139,12 @@ a:focus .icon-social {
         margin: 1.25rem auto 0;
     }
 }
+
+/* Unavailable Teams/WhatsApp state: visibly inert, never looks clickable */
+.quick-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    background: #f1f5f9;
+    color: #64748b;
+    font-style: italic;
+}
